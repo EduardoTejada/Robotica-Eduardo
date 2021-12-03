@@ -36,14 +36,28 @@ void parar();
 
 unsigned long time = 0;
 
-#include <dht.h>   //biblioteca do sensor de umidade e temperatura
+#include <DHT.h>   //biblioteca do sensor de umidade e temperatura
 
-#define dht_pin 13   //pino de sinal do dht11 ligado no digital 13
+#define DHTPIN 2   //pino de sinal do dht11 ligado no digital 13
+#define DHTTYPE DHT11;   //objeto para o sensor
 
-dht   my_dht;   //objeto para o sensor
+DHT dht(DHTPIN, DHTTYPE);
+BlynkTimer timer;
 
-int    temperatura = 0x00,   //armazena a temperatura em inteiro
-       umidade     = 0x00;   //armazena a umidade em inteiro
+void sendSensor()
+{
+  float h = dht.readHumidity();
+  float t = dht.readTemperature(); // or dht.readTemperature(true) for Fahrenheit
+
+  if (isnan(h) || isnan(t)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  // You can send any value at any time.
+  // Please don't send more that 10 values per second.
+  Blynk.virtualWrite(V5, h);
+  Blynk.virtualWrite(V6, t);
+}
 
 #define pinLedAzul A12 //azul
 #define pinLedVermelho A14 //vermelho
@@ -63,8 +77,6 @@ int    temperatura = 0x00,   //armazena a temperatura em inteiro
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
 
 #define pinJoystick V0
-#define pinTemperatura V1
-#define pinUmidade V2
 
 int joyX, joyY;
 
@@ -104,10 +116,15 @@ void setup()
   pinMode(roda_d_f_2, OUTPUT);
   pinMode(roda_d_t_1, OUTPUT);
   pinMode(roda_d_t_2, OUTPUT);
+
+  dht.begin();
+  // Setup a function to be called every second
+  timer.setInterval(1000L, sendSensor);
 }
 
 void loop() {
   Blynk.run();
+  timer.run();
   if (joyY > 100 && joyY < 150) {
     if (joyX > 128) direita();
     else if (joyX < 128) esquerda();
@@ -116,12 +133,6 @@ void loop() {
   else if (joyY >= 150) frente();
   else if (joyY <= 100) tras();
   if ((joyX == 0 && joyY == 0) || sonar.ping_cm() < 20.0) parar();
-  
-  my_dht.read11(dht_pin);
-  temperatura = my_dht.temperature;
-  umidade     = my_dht.humidity;
-  Blynk.virtualWrite(V1, temperatura);
-  Blynk.virtualWrite(V2, umidade);
   /*if(millis() >= timeLed + 500){
       timeLed += 500;
       trocarLed();
